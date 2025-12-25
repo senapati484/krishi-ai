@@ -33,7 +33,7 @@ npm install --legacy-peer-deps
 Create a `.env.local` file in the root directory:
 
 ```env
-MONGODB_URI=mongodb+srv://senapati484:NRXBaYiU1pjMP7R2@cluster0.nf6twbl.mongodb.net/krishi
+MONGODB_URI=mongodb+srv://mongo_url/krishi
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
