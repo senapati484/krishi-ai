@@ -62,12 +62,21 @@ export async function POST(request: NextRequest) {
 
         let user;
         if (id) {
+            // Get current user to preserve emailVerified status
+            const currentUser = await User.findById(id);
+            if (!currentUser) {
+                return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            }
+            
             // Update existing user
             const updateData: Partial<IUser> = {
                 name,
                 phone,
                 language,
                 location,
+                // CRITICAL: Preserve emailVerified status - never overwrite it to false
+                // Only update if it's explicitly true, otherwise keep existing value
+                emailVerified: currentUser.emailVerified !== undefined ? currentUser.emailVerified : false,
             };
 
             // Update lastLocation if provided
@@ -118,18 +127,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Fetch fresh user to ensure we have latest emailVerified status
+        const updatedUser = await User.findById(user._id);
+        
         return NextResponse.json({
             success: true,
             user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                phone: user.phone,
-                language: user.language,
-                location: user.location,
-                lastLocation: user.lastLocation,
-                emailNotifications: user.emailNotifications,
-                emailVerified: user.emailVerified,
+                id: updatedUser?._id || user._id,
+                name: updatedUser?.name || user.name,
+                email: updatedUser?.email || user.email,
+                phone: updatedUser?.phone || user.phone,
+                language: updatedUser?.language || user.language,
+                location: updatedUser?.location || user.location,
+                lastLocation: updatedUser?.lastLocation || user.lastLocation,
+                emailNotifications: updatedUser?.emailNotifications ?? user.emailNotifications,
+                emailVerified: updatedUser?.emailVerified ?? user.emailVerified ?? false,
             },
         });
     } catch (error: unknown) {

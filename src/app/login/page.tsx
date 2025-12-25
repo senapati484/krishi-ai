@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const { language, setUser, setToken } = useStore();
+  const { language, login } = useStore();
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
@@ -33,8 +33,8 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (data.success) {
-        setUser(data.user);
-        setToken(data.token);
+        // Use login function to save both user and token, including emailVerified
+        login(data.user, data.token);
         router.push("/");
       } else {
         setError(data.error || "Login failed");

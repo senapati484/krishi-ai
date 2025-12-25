@@ -32,6 +32,7 @@ interface AppState {
     setUser: (user: User | null) => void;
     setToken: (token: string | null) => void;
     setLanguage: (lang: Language) => void;
+    login: (user: User, token: string) => void;
     logout: () => void;
 }
 
@@ -85,6 +86,17 @@ export const useStore = create<AppState>((set) => ({
                 user: state.user,
                 token: state.token,
                 language: lang
+            }));
+        }
+    },
+    login: (user, token) => {
+        set({ user, token });
+        if (typeof window !== 'undefined') {
+            const state = useStore.getState();
+            localStorage.setItem('krishi-ai-storage', JSON.stringify({
+                user,
+                token,
+                language: state.language
             }));
         }
     },

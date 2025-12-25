@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IUser extends Document {
   name: string;
   email: string;
-  password: string;
+  password?: string; // Optional - not required for email-only users
   phone?: string;
   language: 'hi' | 'bn' | 'en';
   location?: {
@@ -41,7 +41,7 @@ const UserSchema = new Schema<IUser>({
   },
   password: {
     type: String,
-    required: true,
+    required: false, // Not required for users who register via email verification
   },
   phone: {
     type: String,

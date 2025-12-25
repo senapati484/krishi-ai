@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       location: user.location,
       lastLocation: user.lastLocation,
       emailNotifications: user.emailNotifications,
+      emailVerified: user.emailVerified ?? false, // Include email verification status
     };
 
     return NextResponse.json({

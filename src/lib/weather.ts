@@ -50,10 +50,10 @@ export async function getWeatherData(lat: number, lon: number): Promise<WeatherD
       condition: currentData.weather[0].main,
       description: currentData.weather[0].description,
       windSpeed: currentData.wind?.speed || 0,
+      main: currentData.weather[0].main, // Add main for compatibility
     };
 
-    // Generate alerts based on weather conditions
-    weather.alerts = generateWeatherAlerts(weather);
+    // Alerts will be generated in the API route
 
     return weather;
   } catch (error) {
@@ -62,7 +62,7 @@ export async function getWeatherData(lat: number, lon: number): Promise<WeatherD
   }
 }
 
-function generateWeatherAlerts(weather: WeatherData): WeatherAlert[] {
+export function generateWeatherAlerts(weather: WeatherData, language: string = 'en'): WeatherAlert[] {
   const alerts: WeatherAlert[] = [];
 
   // Heavy rain alert

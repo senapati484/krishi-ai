@@ -17,6 +17,7 @@ import Link from "next/link";
 
 export default function ProfilePage() {
   const { user, language, setUser } = useStore();
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -34,6 +35,11 @@ export default function ProfilePage() {
   const [verifying, setVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<string>("");
 
+  // Fix hydration error by only rendering after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (user) {
       setFormData({
@@ -46,10 +52,13 @@ export default function ProfilePage() {
         emailNotifications: user.emailNotifications !== false,
       });
 
-      if (user.emailVerified) {
+      // Set verification status based on user's emailVerified field
+      if (user.emailVerified === true) {
         setVerificationStatus("verified");
       } else if (user.email) {
         setVerificationStatus("pending");
+      } else {
+        setVerificationStatus("");
       }
 
       // Show location status
@@ -138,15 +147,20 @@ export default function ProfilePage() {
       const data = await response.json();
       if (data.success) {
         setVerificationStatus("pending");
+        setVerificationCode(""); // Clear any old code
+        
         // In development, show code in console and alert
         if (data.code) {
           console.log(`[DEV] Verification code: ${data.code}`);
-          alert(`Verification code sent! Check your email.\n\n[DEV MODE] Code: ${data.code}`);
+          alert(`Verification code sent! Check your email.\n\n[DEV MODE] Code: ${data.code}\n\nThis code expires in 10 minutes.`);
         } else {
-          alert("Verification code sent to your email! Please check your inbox.");
+          alert("Verification code sent to your email! Please check your inbox (and spam folder).\n\nThe code expires in 10 minutes.");
         }
       } else {
-        alert(data.error || "Failed to send verification code. Please check your email configuration.");
+        const errorMsg = data.error || "Failed to send verification code.";
+        const detailsMsg = data.details ? `\n\nDetails: ${data.details}` : "";
+        alert(errorMsg + detailsMsg);
+        console.error("Email verification error:", data);
       }
     } catch (error) {
       console.error("Error sending verification code:", error);
@@ -157,20 +171,32 @@ export default function ProfilePage() {
   };
 
   const handleVerifyCode = async () => {
-    if (!user?.id || verificationCode.length !== 6) return;
+    if (!user?.id) return;
+    
+    // Trim and validate code
+    const codeToVerify = verificationCode.trim().replace(/\s/g, ''); // Remove all spaces
+    
+    if (codeToVerify.length !== 6 || !/^\d{6}$/.test(codeToVerify)) {
+      alert("Please enter a valid 6-digit code.");
+      return;
+    }
 
     setVerifying(true);
     try {
+      console.log('Verifying code:', codeToVerify);
+
       const response = await fetch("/api/auth/verify-email", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
-          code: verificationCode,
+          code: codeToVerify,
         }),
       });
 
       const data = await response.json();
+      console.log('Verification response:', data);
+      
       if (data.success) {
         setVerificationStatus("verified");
         setVerificationCode("");
@@ -181,13 +207,15 @@ export default function ProfilePage() {
             emailVerified: true,
           });
         }
-        alert("Email verified successfully!");
+        alert("✅ Email verified successfully!");
       } else {
-        alert(data.error || "Invalid verification code");
+        const errorMsg = data.error || "Invalid verification code";
+        alert(errorMsg + "\n\nPlease check:\n1. Code is correct (6 digits)\n2. Code hasn't expired (10 minutes)\n3. Request a new code if needed");
+        console.error('Verification failed:', data);
       }
     } catch (error) {
       console.error("Error verifying code:", error);
-      alert("Error verifying code");
+      alert("Error verifying code. Please try again.");
     } finally {
       setVerifying(false);
     }
@@ -218,7 +246,20 @@ export default function ProfilePage() {
 
       const data = await response.json();
       if (data.success) {
-        setUser(data.user);
+        // Update user state with all fields including emailVerified
+        setUser({
+          ...user,
+          ...data.user,
+          emailVerified: data.user.emailVerified ?? user?.emailVerified ?? false,
+        });
+        
+        // Update verification status based on saved emailVerified
+        if (data.user.emailVerified === true) {
+          setVerificationStatus("verified");
+        } else if (data.user.email) {
+          setVerificationStatus("pending");
+        }
+        
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       }
@@ -229,6 +270,15 @@ export default function ProfilePage() {
     }
   };
 
+  // Prevent hydration error by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -237,7 +287,7 @@ export default function ProfilePage() {
           className="text-green-700 font-semibold flex items-center gap-2 mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          {t("back", language)}
+          {mounted ? t("back", language) : "Back"}
         </Link>
 
         <h1 className="text-3xl font-bold text-gray-900 mb-6">
@@ -416,11 +466,17 @@ export default function ProfilePage() {
                   <div className="flex gap-2">
                     <input
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value)}
+                      onChange={(e) => {
+                        // Only allow numbers, max 6 digits
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setVerificationCode(value);
+                      }}
                       placeholder="Enter 6-digit code"
                       maxLength={6}
-                      className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-green-500"
+                      className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-green-500 text-center text-xl font-bold tracking-widest"
                     />
                     <button
                       type="button"

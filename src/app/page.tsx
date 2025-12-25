@@ -17,6 +17,7 @@ import VoiceInput from "@/components/VoiceInput";
 import DiagnosisResult from "@/components/DiagnosisResult";
 import QuickDiagnosisCards from "@/components/QuickDiagnosisCards";
 import WeatherAlert from "@/components/WeatherAlert";
+import WeatherReport from "@/components/WeatherReport";
 import PWAInstall from "@/components/PWAInstall";
 import LocationTracker from "@/components/LocationTracker";
 import Link from "next/link";
@@ -283,8 +284,13 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Weather Alerts */}
-            {user?.lastLocation && <WeatherAlert language={language} />}
+            {/* Weather Report Section */}
+            {user?.lastLocation && (
+              <div className="space-y-4">
+                <WeatherReport language={language} />
+                <WeatherAlert language={language} />
+              </div>
+            )}
 
             {/* Quick Diagnosis Cards */}
             <QuickDiagnosisCards language={language} cropType="tomato" />

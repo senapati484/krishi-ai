@@ -20,18 +20,28 @@ export async function sendVerificationCode(
   code: string,
   language: 'hi' | 'bn' | 'en' = 'en'
 ): Promise<void> {
+  // Debug: Log environment variables (without showing passwords)
+  console.log('Email Config Check:', {
+    EMAIL_HOST,
+    EMAIL_PORT,
+    EMAIL_USER: EMAIL_USER ? `${EMAIL_USER.substring(0, 3)}***` : 'NOT SET',
+    EMAIL_PASS: EMAIL_PASS ? 'SET' : 'NOT SET',
+  });
+
   if (!EMAIL_USER || !EMAIL_PASS) {
     console.warn('Email not configured. EMAIL_USER or EMAIL_PASS missing.');
     console.warn(`[DEV] Verification code for ${email}: ${code}`);
-    throw new Error('Email configuration missing. Please set EMAIL_USER and EMAIL_PASS in .env.local');
+    throw new Error('Email configuration missing. Please set EMAIL_USER and EMAIL_PASS in .env.local and restart the server.');
   }
 
   // Verify transporter is configured
   try {
     await transporter.verify();
+    console.log('✅ Email transporter verified successfully');
   } catch (error) {
-    console.error('Email transporter verification failed:', error);
-    throw new Error('Email server connection failed. Please check your email configuration.');
+    console.error('❌ Email transporter verification failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Email server connection failed: ${errorMessage}. Please check your email configuration and ensure you're using an App Password for Gmail.`);
   }
 
   const labels = {
@@ -104,15 +114,23 @@ export async function sendVerificationCode(
   `;
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: `"Krishi AI" <${EMAIL_USER}>`,
       to: email,
       subject: t.subject,
       html,
     });
-    console.log(`Verification code sent to ${email}`);
+    console.log(`✅ Verification code sent to ${email}`);
+    console.log('Email message ID:', info.messageId);
   } catch (error) {
-    console.error('Error sending verification email:', error);
+    console.error('❌ Error sending verification email:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        code: (error as Error & { code?: string }).code,
+        command: (error as Error & { command?: string }).command,
+      });
+    }
     throw error;
   }
 }
