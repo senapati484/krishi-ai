@@ -21,6 +21,7 @@ import WeatherReport from "@/components/WeatherReport";
 import VideoTutorials from "@/components/VideoTutorials";
 import PWAInstall from "@/components/PWAInstall";
 import LocationTracker from "@/components/LocationTracker";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect } from "react";
 
@@ -29,6 +30,15 @@ export default function Home() {
   const [showCamera, setShowCamera] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const WeatherReport = dynamic(() => import("@/components/WeatherReport"), {
+    ssr: false,
+  });
+
+  const WeatherAlert = dynamic(() => import("@/components/WeatherAlert"), {
+    ssr: false,
+  });
+
   interface DiagnosisData {
     crop: string;
     disease: {

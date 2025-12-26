@@ -63,7 +63,7 @@ export default function LocationTracker() {
           const message =
             errorMessages[error.code] ||
             `Geolocation error code: ${error.code}`;
-          console.error("Error getting location:", message);
+          // console.error("Error getting location:", message);
         },
         {
           enableHighAccuracy: true,
