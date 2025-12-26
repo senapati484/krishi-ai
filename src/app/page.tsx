@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Camera,
   Mic,
@@ -9,6 +10,8 @@ import {
   Globe,
   LogOut,
   LayoutDashboard,
+  Menu,
+  X,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { t } from "@/lib/i18n";
@@ -22,15 +25,16 @@ import VideoTutorials from "@/components/VideoTutorials";
 import PWAInstall from "@/components/PWAInstall";
 import LocationTracker from "@/components/LocationTracker";
 import Link from "next/link";
-import { useEffect } from "react";
 
-export default function Home () {
+export default function Home() {
   const { user, language, setLanguage, logout } = useStore();
   const [showCamera, setShowCamera] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // ... DiagnosisData, states, handlers, and useEffect() remain the same ...
   interface DiagnosisData {
     crop: string;
     disease: {
@@ -59,7 +63,6 @@ export default function Home () {
   const [diagnosis, setDiagnosis] = useState<DiagnosisData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Register service worker
   useEffect(() => {
     setMounted(true);
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -78,12 +81,9 @@ export default function Home () {
     setShowCamera(false);
     setLoading(true);
     setError(null);
-
     try {
-      // Ensure user exists
       let currentUser = user;
       if (!currentUser || !currentUser.id) {
-        // Create or get user
         const userResponse = await fetch("/api/user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -200,22 +200,38 @@ export default function Home () {
     <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-green-700">
-              🌾 {t("appName", language)}
-            </h1>
-            <p className="text-sm text-gray-600">
-              {t("tagline", language) || "Your Crop Doctor"}
-            </p>
-          </div>
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+          {/* Left: logo + optional tagline (hidden on small) */}
           <div className="flex items-center gap-3">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-3">
+                <Image
+                  src="/logo.png"
+                  alt="Krishi AI"
+                  width={48}
+                  height={48}
+                  className="w-12 h-12"
+                />
+                <div>
+                  <h1 className="text-2xl font-bold text-green-700">
+                    {t("appName", language)}
+                  </h1>
+                  <p className="text-sm text-gray-600">
+                    {t("tagline", language) || "Your Crop Doctor"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Right: desktop controls */}
+          <div className="hidden md:flex items-center gap-3">
             {user && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <User className="w-4 h-4" />
-                <span>{user.name}</span>
+                <span className="max-w-[110px] truncate">{user.name}</span>
               </div>
             )}
+
             <div className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-gray-600" />
               <select
@@ -223,7 +239,8 @@ export default function Home () {
                 onChange={(e) =>
                   setLanguage(e.target.value as "hi" | "bn" | "en")
                 }
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                aria-label="Select language"
               >
                 {languages.map((lang) => (
                   <option key={lang.code} value={lang.code}>
@@ -232,6 +249,7 @@ export default function Home () {
                 ))}
               </select>
             </div>
+
             {user ? (
               <button
                 onClick={logout}
@@ -249,7 +267,102 @@ export default function Home () {
               </Link>
             )}
           </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden flex items-center">
+            <button
+              aria-label="Open menu"
+              onClick={() => setMobileMenuOpen((s) => !s)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6 text-gray-700" />
+              ) : (
+                <Menu className="w-6 h-6 text-gray-700" />
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile dropdown panel */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t bg-white/95">
+            <div className="max-w-4xl mx-auto px-4 py-3 space-y-3">
+              {user ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <User className="w-5 h-5 text-gray-700" />
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">
+                        {user.name}
+                      </div>
+                      <div className="text-xs text-gray-500">Signed in</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-sm text-red-600 px-3 py-1 rounded-md hover:bg-red-50"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg font-semibold"
+                >
+                  Login
+                </Link>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-gray-600" />
+                <select
+                  value={language}
+                  onChange={(e) => {
+                    setLanguage(e.target.value as "hi" | "bn" | "en");
+                    setMobileMenuOpen(false);
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 w-full"
+                >
+                  {languages.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="bg-gray-100 text-gray-800 p-3 rounded-lg text-center"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/history"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="bg-gray-100 text-gray-800 p-3 rounded-lg text-center"
+                >
+                  History
+                </Link>
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="bg-gray-100 text-gray-800 p-3 rounded-lg text-center"
+                >
+                  Profile
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
@@ -362,7 +475,7 @@ export default function Home () {
 
       {/* Voice Input Modal */}
       {showVoice && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4 pt-4 pb-0">
           <div className="bg-white rounded-2xl w-full max-w-md p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">{t("voiceQuery", language)}</h3>
@@ -380,6 +493,19 @@ export default function Home () {
           </div>
         </div>
       )}
+
+      {/* Footer */}
+      <footer className="max-w-4xl mx-auto px-4 pb-4 text-center text-sm text-gray-600">
+        Krishi AI by{" "}
+        <a
+          href="https://github.com/senapati484"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-green-700 hover:underline"
+        >
+          senapati484
+        </a>
+      </footer>
 
       <PWAInstall />
       <LocationTracker />

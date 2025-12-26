@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Plus, Calendar, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { t } from "@/lib/i18n";
 import Link from "next/link";
@@ -25,12 +31,17 @@ export default function DashboardPage() {
     plantedDate: "",
     variety: "",
   });
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
       fetchCrops();
     }
   }, [user]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchCrops = async () => {
     try {
@@ -86,6 +97,10 @@ export default function DashboardPage() {
     monitoring: AlertCircle,
     diseased: AlertCircle,
   };
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
@@ -265,4 +280,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
