@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^3.3.4",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.0",
+    "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.344.0",
     "mongodb": "^6.3.0",
@@ -32,13 +33,14 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5",
-    "@types/node": "^20",
+    "@types/node": "^20.19.27",
     "@types/nodemailer": "^6.4.14",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }

@@ -56,9 +56,11 @@ export default function Home() {
 
   const [diagnosis, setDiagnosis] = useState<DiagnosisData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  // Register service worker
+  // Register service worker and mark client mount
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js")
@@ -185,6 +187,8 @@ export default function Home() {
     { code: "en", name: "English" },
   ];
 
+  const isAuthed = mounted && !!user;
+
   return (
     <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
       {/* Header */}
@@ -199,43 +203,52 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {user && (
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <User className="w-4 h-4" />
-                <span>{user.name}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-gray-600" />
-              <select
-                value={language}
-                onChange={(e) =>
-                  setLanguage(e.target.value as "hi" | "bn" | "en")
-                }
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                {languages.map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {user ? (
-              <button
-                onClick={logout}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-5 h-5 text-gray-600" />
-              </button>
+            {!mounted ? (
+              <>
+                <div className="w-24 h-6 rounded bg-gray-100 animate-pulse" />
+                <div className="w-20 h-9 rounded bg-gray-100 animate-pulse" />
+              </>
             ) : (
-              <Link
-                href="/login"
-                className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
-              >
-                Login
-              </Link>
+              <>
+                {isAuthed && (
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <User className="w-4 h-4" />
+                    <span>{user?.name}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-gray-600" />
+                  <select
+                    value={language}
+                    onChange={(e) =>
+                      setLanguage(e.target.value as "hi" | "bn" | "en")
+                    }
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    {languages.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {isAuthed ? (
+                  <button
+                    onClick={logout}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut className="w-5 h-5 text-gray-600" />
+                  </button>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+                  >
+                    Login
+                  </Link>
+                )}
+              </>
             )}
           </div>
         </div>
