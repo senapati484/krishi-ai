@@ -15,7 +15,7 @@ import { useStore } from "@/store/useStore";
 import { t } from "@/lib/i18n";
 import Link from "next/link";
 
-export default function ProfilePage() {
+export default function ProfilePage () {
   const { user, language, setUser, refreshUser } = useStore();
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
@@ -72,7 +72,7 @@ export default function ProfilePage() {
         );
       } else {
         setLocationStatus(
-          "Location not set. Enable location access to receive weather alerts."
+          "Location not set. Click a button below to set your location."
         );
       }
     }
@@ -96,7 +96,7 @@ export default function ProfilePage() {
             });
 
             const data = await response.json();
-            
+
             if (data.success && user) {
               // Update store with new location
               const updatedUser = {
@@ -108,13 +108,13 @@ export default function ProfilePage() {
                 },
               };
               setUser(updatedUser);
-              
+
               setLocationStatus(
                 `Location updated: ${latitude.toFixed(
                   4
                 )}, ${longitude.toFixed(4)}`
               );
-              
+
               // Show success for a few seconds
               setTimeout(() => {
                 setLocationStatus(
@@ -132,23 +132,62 @@ export default function ProfilePage() {
           }
         },
         (error) => {
-          console.error("Geolocation error:", error);
-          let errorMsg = "Location access denied. Please enable location permissions.";
-          
+          // Handle geolocation errors gracefully without console spam
+          let errorMsg = "Location access denied. Please enable in browser settings.";
+
           if (error.code === error.PERMISSION_DENIED) {
             errorMsg = "Location permission denied. Please enable in browser settings.";
           } else if (error.code === error.POSITION_UNAVAILABLE) {
-            errorMsg = "Location information unavailable. Check your GPS.";
+            errorMsg = "Unable to get location. Enable location access in browser settings or use test location below.";
           } else if (error.code === error.TIMEOUT) {
             errorMsg = "Location request timed out. Please try again.";
           }
-          
+
           setLocationStatus(errorMsg);
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 3600000 }
       );
     } else {
       setLocationStatus("Geolocation is not supported by your browser.");
+    }
+  };
+
+  // Test location for development (India - Howrah, West Bengal)
+  const useTestLocation = async () => {
+    setLocationStatus("Setting test location...");
+    try {
+      const response = await fetch("/api/user/location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id,
+          lat: 22.5958,
+          lon: 88.2636,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && user) {
+        const updatedUser = {
+          ...user,
+          lastLocation: {
+            lat: 22.5958,
+            lon: 88.2636,
+            updatedAt: new Date().toISOString(),
+          },
+        };
+        setUser(updatedUser);
+        setLocationStatus("✓ Test location set: Howrah, West Bengal (22.5958°N, 88.2636°E)");
+
+        setTimeout(() => {
+          setLocationStatus("Location: 22.5958, 88.2636 (Test)");
+        }, 3000);
+      } else {
+        setLocationStatus("Error: Failed to set test location");
+      }
+    } catch (error) {
+      setLocationStatus("Error: Network error setting location");
     }
   };
 
@@ -171,19 +210,10 @@ export default function ProfilePage() {
       if (data.success) {
         setVerificationStatus("pending");
         setVerificationCode(""); // Clear any old code
-        
-        // In development, show code in console and alert
-        if (data.code) {
-          console.log(`[DEV] Verification code: ${data.code}`);
-          alert(`Verification code sent! Check your email.\n\n[DEV MODE] Code: ${data.code}\n\nThis code expires in 10 minutes.`);
-        } else {
-          alert("Verification code sent to your email! Please check your inbox (and spam folder).\n\nThe code expires in 10 minutes.");
-        }
+        alert("Verification code sent to your email! Please check your inbox (and spam folder).\n\nThe code expires in 10 minutes.");
       } else {
         const errorMsg = data.error || "Failed to send verification code.";
-        const detailsMsg = data.details ? `\n\nDetails: ${data.details}` : "";
-        alert(errorMsg + detailsMsg);
-        console.error("Email verification error:", data);
+        alert(errorMsg);
       }
     } catch (error) {
       console.error("Error sending verification code:", error);
@@ -195,10 +225,10 @@ export default function ProfilePage() {
 
   const handleVerifyCode = async () => {
     if (!user?.id) return;
-    
+
     // Trim and validate code
     const codeToVerify = verificationCode.trim().replace(/\s/g, ''); // Remove all spaces
-    
+
     if (codeToVerify.length !== 6 || !/^\d{6}$/.test(codeToVerify)) {
       alert("Please enter a valid 6-digit code.");
       return;
@@ -219,14 +249,14 @@ export default function ProfilePage() {
 
       const data = await response.json();
       console.log('Verification response:', data);
-      
+
       if (data.success) {
         setVerificationStatus("verified");
         setVerificationCode("");
-        
+
         // Refresh user data from server to persist emailVerified status
         await refreshUser();
-        
+
         alert("✅ Email verified successfully!");
       } else {
         const errorMsg = data.error || "Invalid verification code";
@@ -272,14 +302,14 @@ export default function ProfilePage() {
           ...data.user,
           emailVerified: data.user.emailVerified ?? user?.emailVerified ?? false,
         });
-        
+
         // Update verification status based on saved emailVerified
         if (data.user.emailVerified === true) {
           setVerificationStatus("verified");
         } else if (data.user.email) {
           setVerificationStatus("pending");
         }
-        
+
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       }
@@ -307,7 +337,7 @@ export default function ProfilePage() {
           className="text-green-700 font-semibold flex items-center gap-2 mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          {mounted ? t("back", language) : "Back"}
+          {t("back", language)}
         </Link>
 
         <h1 className="text-3xl font-bold text-gray-900 mb-6">
@@ -414,14 +444,23 @@ export default function ProfilePage() {
             </label>
             <div className="space-y-2">
               <p className="text-sm text-gray-600 mb-2">{locationStatus}</p>
-              <button
-                type="button"
-                onClick={requestLocation}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <MapPin className="w-4 h-4" />
-                Update Location
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <MapPin className="w-4 h-4" />
+                  Update Location
+                </button>
+                <button
+                  type="button"
+                  onClick={useTestLocation}
+                  className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-xl font-semibold hover:bg-gray-600 transition-colors text-sm"
+                >
+                  Use Test Location
+                </button>
+              </div>
             </div>
           </div>
 

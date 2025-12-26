@@ -49,9 +49,9 @@ async function seed() {
     console.log("Connecting to MongoDB...");
     await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/krishi-ai");
     console.log("Connected to MongoDB");
-    
+
     const existing = await VideoTutorial.countDocuments();
-    
+
     if (existing === 0) {
       console.log("Inserting demo videos...");
       await VideoTutorial.insertMany(DEMO_VIDEOS);

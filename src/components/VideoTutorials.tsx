@@ -31,7 +31,7 @@ interface VideoTutorialsProps {
   diagnosisId?: string;
 }
 
-export default function VideoTutorials({
+export default function VideoTutorials ({
   language,
   crop,
   disease,

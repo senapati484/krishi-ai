@@ -30,7 +30,7 @@ export default function Home () {
   const [showVoice, setShowVoice] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-  
+
   interface DiagnosisData {
     crop: string;
     disease: {

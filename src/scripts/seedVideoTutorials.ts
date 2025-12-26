@@ -20,7 +20,7 @@ const DEMO_VIDEOS = [
     },
 ];
 
-async function seed() {
+async function seed () {
     try {
         await connectDB();
 

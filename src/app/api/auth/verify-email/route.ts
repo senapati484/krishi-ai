@@ -5,7 +5,7 @@ import OTP from '@/models/OTP';
 import { sendVerificationCode } from '@/lib/emailVerification';
 
 // Generate and send verification code
-export async function POST(request: NextRequest) {
+export async function POST (request: NextRequest) {
   try {
     await connectDB();
 
@@ -41,8 +41,7 @@ export async function POST(request: NextRequest) {
     expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
     // Delete any existing OTPs for this user and email
-    const deletedCount = await OTP.deleteMany({ userId, email: email.toLowerCase() });
-    console.log(`[Email Verification] Deleted ${deletedCount.deletedCount} old OTPs for user ${userId}`);
+    await OTP.deleteMany({ userId, email: email.toLowerCase() });
 
     // Create new OTP
     const otp = new OTP({
@@ -54,46 +53,21 @@ export async function POST(request: NextRequest) {
 
     await otp.save();
 
-    console.log(`✅ [Email Verification] OTP generated and saved:`);
-    console.log(`   - Code: ${code}`);
-    console.log(`   - Email: ${email.toLowerCase()}`);
-    console.log(`   - User ID: ${userId}`);
-    console.log(`   - Expires at: ${expiresAt.toISOString()}`);
-    console.log(`   - MongoDB ID: ${otp._id}`);
-
     // Update user email (if different)
     if (user.email !== email.toLowerCase()) {
-      const updateResult = await User.updateOne(
+      await User.updateOne(
         { _id: userId },
         { $set: { email: email.toLowerCase(), emailVerified: false } },
         { runValidators: false }
       );
-      console.log(`[Email Verification] Updated user email. Modified count: ${updateResult.modifiedCount}`);
     }
 
     // Send verification email
     try {
       await sendVerificationCode(email, code, user.language);
-      console.log(`✅ Verification email sent to ${email}`);
     } catch (emailError) {
-      console.error('❌ Error sending email:', emailError);
-
-      // In development, still return success with code
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEV MODE] OTP for ${email}: ${code}`);
-        return NextResponse.json({
-          success: true,
-          message: 'Verification code generated (email failed, see console)',
-          code, // Include code in dev mode
-        });
-      }
-
-      // In production, return error
       return NextResponse.json(
-        {
-          error: 'Failed to send verification email. Please check your email configuration.',
-          details: emailError instanceof Error ? emailError.message : 'Unknown error'
-        },
+        { error: 'Failed to send verification email. Please check your email configuration.' },
         { status: 500 }
       );
     }
@@ -101,8 +75,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Verification code sent to email',
-      // In development, include code for testing
-      ...(process.env.NODE_ENV === 'development' && { code }),
     });
   } catch (error: unknown) {
     console.error('Error in POST verify-email:', error);
@@ -115,7 +87,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Verify the code
-export async function PUT(request: NextRequest) {
+export async function PUT (request: NextRequest) {
   try {
     await connectDB();
 
@@ -132,7 +104,7 @@ export async function PUT(request: NextRequest) {
     // Validate code format (6 digits)
     const codeStr = String(code).trim();
     console.log(`[Email Verification] Attempting to verify code: ${codeStr} for user: ${userId}`);
-    
+
     if (!/^\d{6}$/.test(codeStr)) {
       console.log(`[Email Verification] Invalid code format: ${codeStr}`);
       return NextResponse.json(
@@ -143,7 +115,7 @@ export async function PUT(request: NextRequest) {
 
     // Find the OTP with better error handling
     console.log(`[Email Verification] Searching for OTP with userId=${userId}, code=${codeStr}`);
-    
+
     const otp = await OTP.findOne({
       userId,
       code: codeStr,
@@ -151,11 +123,11 @@ export async function PUT(request: NextRequest) {
     }).sort({ createdAt: -1 }); // Get the most recent one
 
     console.log(`[Email Verification] OTP search result:`, otp ? 'FOUND' : 'NOT FOUND');
-    
+
     if (!otp) {
       // Check if OTP exists but expired
       const expiredOtp = await OTP.findOne({ userId, code: codeStr });
-      
+
       if (expiredOtp) {
         console.log(`[Email Verification] OTP found but EXPIRED. Expires at: ${expiredOtp.expiresAt}, Now: ${new Date()}`);
         return NextResponse.json(
@@ -165,15 +137,15 @@ export async function PUT(request: NextRequest) {
       }
 
       console.log(`[Email Verification] No OTP found with code ${codeStr}`);
-      
+
       // List all OTPs for this user for debugging
       const allOtps = await OTP.find({ userId }).sort({ createdAt: -1 }).limit(5);
-      console.log(`[Email Verification] Recent OTPs for user ${userId}:`, allOtps.map(o => ({ 
-        code: o.code, 
+      console.log(`[Email Verification] Recent OTPs for user ${userId}:`, allOtps.map(o => ({
+        code: o.code,
         expiresAt: o.expiresAt,
         isExpired: o.expiresAt < new Date()
       })));
-      
+
       return NextResponse.json(
         { error: 'Invalid verification code. Please check and try again.' },
         { status: 400 }
