@@ -18,6 +18,12 @@ import DiseaseProgression from "./DiseaseProgression";
 import VideoTutorials from "./VideoTutorials";
 import { useState, useMemo, useEffect } from "react";
 import { useStore } from "@/store/useStore";
+import {
+  speakText,
+  stopSpeaking,
+  isSpeakingSupported,
+  loadVoices,
+} from "@/lib/textToSpeech";
 
 interface DiagnosisResultProps {
   diagnosis: {
@@ -53,62 +59,54 @@ interface DiagnosisResultProps {
   onShare?: () => void;
 }
 
-export default function DiagnosisResult({
+export default function DiagnosisResult ({
   diagnosis,
   language,
   onShare,
 }: DiagnosisResultProps) {
   const { user } = useStore();
   const [showProgression, setShowProgression] = useState(false);
-  const [nowTs, setNowTs] = useState<number | null>(null);
+  const [isClient, setIsClient] = useState(false);
   const [displayLanguage, setDisplayLanguage] = useState<Language>(language);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingSupported, setSpeakingSupported] = useState(false);
 
-  // Capture time after mount to avoid hydration mismatch
+  // Mark client to avoid hydration mismatch when using Date.now
   useEffect(() => {
-    const timer = setTimeout(() => setNowTs(Date.now()), 0);
-    const interval = setInterval(() => setNowTs(Date.now()), 60000);
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
+    setIsClient(true);
+    setSpeakingSupported(isSpeakingSupported());
+    loadVoices();
   }, []);
 
   // Calculate if we should show feedback using useMemo to avoid recalculating unnecessarily
   const shouldShowFeedback = useMemo(() => {
     if (
+      !isClient ||
       !diagnosis.timestamp ||
-      diagnosis.treatmentEffectiveness?.feedback ||
-      nowTs === null
+      diagnosis.treatmentEffectiveness?.feedback
     )
       return false;
     const diagnosisDate = new Date(diagnosis.timestamp);
-    const daysSince = (nowTs - diagnosisDate.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSince =
+      (Date.now() - diagnosisDate.getTime()) / (1000 * 60 * 60 * 24);
     return daysSince >= 7;
-  }, [diagnosis.timestamp, diagnosis.treatmentEffectiveness?.feedback, nowTs]);
+  }, [diagnosis.timestamp, diagnosis.treatmentEffectiveness?.feedback, isClient]);
 
   // Handle voice synthesis
-  const speak = (text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
-    synth.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    const langMap: Record<Language, string> = {
-      hi: "hi-IN",
-      bn: "bn-IN",
-      en: "en-US",
-    };
-    utter.lang = langMap[displayLanguage] || "en-US";
-    utter.onend = () => setIsSpeaking(false);
-    utter.onerror = () => setIsSpeaking(false);
-    setIsSpeaking(true);
-    synth.speak(utter);
-  };
-
-  const stopSpeaking = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
+  const speak = async (text: string) => {
+    try {
+      if (isSpeaking) {
+        stopSpeaking();
+        setIsSpeaking(false);
+      } else {
+        setIsSpeaking(true);
+        await speakText(text, displayLanguage);
+        setIsSpeaking(false);
+      }
+    } catch (error) {
+      console.error("Error speaking:", error);
+      setIsSpeaking(false);
+    }
   };
 
   const diagnosisSummaryText = () => {
@@ -142,33 +140,29 @@ export default function DiagnosisResult({
 🌾 *Krishi AI Diagnosis*
 
 Crop: ${diagnosis.crop}
-${
-  diagnosis.disease
-    ? `Disease: ${diagnosis.disease.name}`
-    : "No disease detected"
-}
+${diagnosis.disease
+        ? `Disease: ${diagnosis.disease.name}`
+        : "No disease detected"
+      }
 ${diagnosis.disease ? `Severity: ${diagnosis.disease.severity}` : ""}
-${
-  diagnosis.disease
-    ? `Confidence: ${Math.round(diagnosis.disease.confidence * 100)}%`
-    : ""
-}
+${diagnosis.disease
+        ? `Confidence: ${Math.round(diagnosis.disease.confidence * 100)}%`
+        : ""
+      }
 
-${
-  diagnosis.advice.immediate.length > 0
-    ? `Immediate Actions:\n${diagnosis.advice.immediate
-        .map((a, i) => `${i + 1}. ${a}`)
-        .join("\n")}`
-    : ""
-}
+${diagnosis.advice.immediate.length > 0
+        ? `Immediate Actions:\n${diagnosis.advice.immediate
+          .map((a, i) => `${i + 1}. ${a}`)
+          .join("\n")}`
+        : ""
+      }
 
-${
-  diagnosis.advice.treatment.length > 0
-    ? `Treatment Options:\n${diagnosis.advice.treatment
-        .map((t) => `- ${t.name} (${t.type}): ₹${t.cost}`)
-        .join("\n")}`
-    : ""
-}
+${diagnosis.advice.treatment.length > 0
+        ? `Treatment Options:\n${diagnosis.advice.treatment
+          .map((t) => `- ${t.name} (${t.type}): ₹${t.cost}`)
+          .join("\n")}`
+        : ""
+      }
     `.trim();
 
     if (typeof window !== "undefined" && navigator.share) {
@@ -217,21 +211,20 @@ ${
                 <option value="bn">বাংলা</option>
               </select>
             </div>
-            {!isSpeaking ? (
+            {speakingSupported && (
               <button
                 onClick={() => speak(diagnosisSummaryText())}
-                className="p-2 rounded-full bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                title="Play summary"
+                className={`p-2 rounded-full transition-colors ${isSpeaking
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-green-50 text-green-700 hover:bg-green-100"
+                  }`}
+                title={isSpeaking ? "Stop" : "Play summary"}
               >
-                <Volume2 className="w-5 h-5" />
-              </button>
-            ) : (
-              <button
-                onClick={stopSpeaking}
-                className="p-2 rounded-full bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                title="Stop"
-              >
-                <VolumeX className="w-5 h-5" />
+                {isSpeaking ? (
+                  <VolumeX className="w-5 h-5" />
+                ) : (
+                  <Volume2 className="w-5 h-5" />
+                )}
               </button>
             )}
           </div>
@@ -251,9 +244,8 @@ ${
       {/* Severity Badge */}
       {diagnosis.disease && (
         <div
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 ${
-            severityColors[diagnosis.disease.severity]
-          }`}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 ${severityColors[diagnosis.disease.severity]
+            }`}
         >
           {(() => {
             const Icon = severityIcons[diagnosis.disease.severity];
@@ -286,21 +278,20 @@ ${
               <AlertTriangle className="w-5 h-5 text-orange-600" />
               {t("immediateActions", displayLanguage)}
             </h3>
-            {!isSpeaking ? (
+            {speakingSupported && (
               <button
                 onClick={() => speak(diagnosis.advice.immediate.join(". "))}
-                className="p-2 rounded-full bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                title="Read actions"
+                className={`p-2 rounded-full transition-colors ${isSpeaking
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-green-50 text-green-700 hover:bg-green-100"
+                  }`}
+                title={isSpeaking ? "Stop" : "Read actions"}
               >
-                <Volume2 className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={stopSpeaking}
-                className="p-2 rounded-full bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                title="Stop"
-              >
-                <VolumeX className="w-4 h-4" />
+                {isSpeaking ? (
+                  <VolumeX className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
               </button>
             )}
           </div>
@@ -324,7 +315,7 @@ ${
             <h3 className="font-semibold text-gray-900">
               {t("treatment", displayLanguage)}
             </h3>
-            {!isSpeaking ? (
+            {speakingSupported && (
               <button
                 onClick={() =>
                   speak(
@@ -336,18 +327,17 @@ ${
                       .join(". ")
                   )
                 }
-                className="p-2 rounded-full bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                title="Read treatments"
+                className={`p-2 rounded-full transition-colors ${isSpeaking
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-green-50 text-green-700 hover:bg-green-100"
+                  }`}
+                title={isSpeaking ? "Stop" : "Read treatments"}
               >
-                <Volume2 className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={stopSpeaking}
-                className="p-2 rounded-full bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                title="Stop"
-              >
-                <VolumeX className="w-4 h-4" />
+                {isSpeaking ? (
+                  <VolumeX className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
               </button>
             )}
           </div>
@@ -355,11 +345,10 @@ ${
             {diagnosis.advice.treatment.map((treatment, i) => (
               <div
                 key={i}
-                className={`p-4 rounded-xl border-2 ${
-                  treatment.type === "organic"
+                className={`p-4 rounded-xl border-2 ${treatment.type === "organic"
                     ? "bg-green-50 border-green-200"
                     : "bg-blue-50 border-blue-200"
-                }`}
+                  }`}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
@@ -367,11 +356,10 @@ ${
                       {treatment.name}
                     </span>
                     <span
-                      className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
-                        treatment.type === "organic"
+                      className={`ml-2 px-2 py-1 rounded text-xs font-medium ${treatment.type === "organic"
                           ? "bg-green-200 text-green-800"
                           : "bg-blue-200 text-blue-800"
-                      }`}
+                        }`}
                     >
                       {t(treatment.type, displayLanguage)}
                     </span>
@@ -399,7 +387,7 @@ ${
           <ul className="space-y-2">
             {diagnosis.advice.prevention.map((tip, i) => (
               <li key={i} className="flex gap-3">
-                <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <span className="text-gray-700">{tip}</span>
               </li>
             ))}
@@ -411,7 +399,7 @@ ${
       {diagnosis.advice.expertConsultNeeded && (
         <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-600 shrink-0" />
+            <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0" />
             <div>
               <h4 className="font-semibold text-red-900 mb-1">
                 {t("expertNeeded", language)}
@@ -431,7 +419,7 @@ ${
           <TreatmentFeedback
             diagnosisId={diagnosis.id}
             language={language}
-            onFeedbackSubmitted={() => {}}
+            onFeedbackSubmitted={() => { }}
           />
         </div>
       )}

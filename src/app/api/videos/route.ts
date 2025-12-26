@@ -3,7 +3,7 @@ import connectDB from '@/lib/mongodb';
 import VideoTutorial from '@/models/VideoTutorial';
 
 // GET - Get videos by crop, disease, language, etc.
-export async function GET(request: NextRequest) {
+export async function GET (request: NextRequest) {
   try {
     await connectDB();
     const { searchParams } = new URL(request.url);
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Upload a video (community or admin)
-export async function POST(request: NextRequest) {
+export async function POST (request: NextRequest) {
   try {
     await connectDB();
     const body = await request.json();
@@ -116,5 +116,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
 

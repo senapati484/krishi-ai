@@ -5,7 +5,7 @@ import Diagnosis from '@/models/Diagnosis';
 import { analyzeSoilHealth } from '@/lib/soilHealth';
 
 // GET - Get crop recommendations based on soil + disease history
-export async function GET(request: NextRequest) {
+export async function GET (request: NextRequest) {
     try {
         await connectDB();
         const { searchParams } = new URL(request.url);
@@ -67,5 +67,4 @@ export async function GET(request: NextRequest) {
         );
     }
 }
-
 

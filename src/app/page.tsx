@@ -21,24 +21,16 @@ import WeatherReport from "@/components/WeatherReport";
 import VideoTutorials from "@/components/VideoTutorials";
 import PWAInstall from "@/components/PWAInstall";
 import LocationTracker from "@/components/LocationTracker";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect } from "react";
 
-export default function Home() {
+export default function Home () {
   const { user, language, setLanguage, logout } = useStore();
   const [showCamera, setShowCamera] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const WeatherReport = dynamic(() => import("@/components/WeatherReport"), {
-    ssr: false,
-  });
-
-  const WeatherAlert = dynamic(() => import("@/components/WeatherAlert"), {
-    ssr: false,
-  });
-
+  const [mounted, setMounted] = useState(false);
+  
   interface DiagnosisData {
     crop: string;
     disease: {
@@ -66,9 +58,8 @@ export default function Home() {
 
   const [diagnosis, setDiagnosis] = useState<DiagnosisData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
 
-  // Register service worker and mark client mount
+  // Register service worker
   useEffect(() => {
     setMounted(true);
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
@@ -197,7 +188,13 @@ export default function Home() {
     { code: "en", name: "English" },
   ];
 
-  const isAuthed = mounted && !!user;
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-linear-to-b from-green-50 to-white flex items-center justify-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
@@ -213,52 +210,43 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {!mounted ? (
-              <>
-                <div className="w-24 h-6 rounded bg-gray-100 animate-pulse" />
-                <div className="w-20 h-9 rounded bg-gray-100 animate-pulse" />
-              </>
+            {user && (
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <User className="w-4 h-4" />
+                <span>{user.name}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-gray-600" />
+              <select
+                value={language}
+                onChange={(e) =>
+                  setLanguage(e.target.value as "hi" | "bn" | "en")
+                }
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                {languages.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {user ? (
+              <button
+                onClick={logout}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-5 h-5 text-gray-600" />
+              </button>
             ) : (
-              <>
-                {isAuthed && (
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <User className="w-4 h-4" />
-                    <span>{user?.name}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-gray-600" />
-                  <select
-                    value={language}
-                    onChange={(e) =>
-                      setLanguage(e.target.value as "hi" | "bn" | "en")
-                    }
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    {languages.map((lang) => (
-                      <option key={lang.code} value={lang.code}>
-                        {lang.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {isAuthed ? (
-                  <button
-                    onClick={logout}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Logout"
-                  >
-                    <LogOut className="w-5 h-5 text-gray-600" />
-                  </button>
-                ) : (
-                  <Link
-                    href="/login"
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
-                  >
-                    Login
-                  </Link>
-                )}
-              </>
+              <Link
+                href="/login"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+              >
+                Login
+              </Link>
             )}
           </div>
         </div>
@@ -312,12 +300,9 @@ export default function Home() {
             <QuickDiagnosisCards language={language} cropType="tomato" />
 
             {/* Video Tutorials Section */}
-            <VideoTutorials
-              language={language}
-              crop="tomato"
-              disease=""
-              showQR={true}
-            />
+            <div className="mt-6">
+              <VideoTutorials language={language} showQR={true} />
+            </div>
 
             {/* Secondary Actions */}
             <div className="grid gap-4 md:grid-cols-3">

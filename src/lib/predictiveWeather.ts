@@ -17,7 +17,7 @@ export interface PredictiveAlert extends WeatherAlert {
   confidence: number; // 0-1
 }
 
-export async function generatePredictiveAlerts(
+export async function generatePredictiveAlerts (
   weather: WeatherData,
   diseaseHistory: IDiagnosis[],
   crops: string[],
@@ -44,11 +44,11 @@ Crops Being Grown: ${crops.join(', ') || 'Unknown'}
 
 Recent Disease History (last 3 months):
 ${diseaseHistory.length > 0
-  ? diseaseHistory.slice(0, 10).map((d, i) =>
-      `${i + 1}. ${d.crop} - ${d.disease?.name || 'No disease'} (${d.disease?.severity || 'N/A'}) on ${new Date(d.timestamp).toLocaleDateString()}`
-    ).join('\n')
-  : 'No disease history'
-}
+        ? diseaseHistory.slice(0, 10).map((d, i) =>
+          `${i + 1}. ${d.crop} - ${d.disease?.name || 'No disease'} (${d.disease?.severity || 'N/A'}) on ${new Date(d.timestamp).toLocaleDateString()}`
+        ).join('\n')
+        : 'No disease history'
+      }
 
 Based on this data, predict potential disease risks in the next 3-24 hours. Consider:
 1. Weather patterns that favor disease development (high humidity + rain = fungal diseases)
@@ -102,7 +102,7 @@ Focus on actionable, time-sensitive predictions that farmers can act upon immedi
   }
 }
 
-export function combineAlerts(
+export function combineAlerts (
   basicAlerts: WeatherAlert[],
   predictiveAlerts: PredictiveAlert[]
 ): PredictiveAlert[] {
@@ -121,8 +121,8 @@ export function combineAlerts(
 
   // Add predictive alerts, avoiding duplicates
   predictiveAlerts.forEach(predAlert => {
-    const exists = combined.some(a => 
-      a.type === predAlert.type && 
+    const exists = combined.some(a =>
+      a.type === predAlert.type &&
       a.message === predAlert.message
     );
     if (!exists) {
@@ -139,7 +139,7 @@ export function combineAlerts(
   });
 }
 
-function getDefaultActions(type: string, severity: string): string[] {
+function getDefaultActions (type: string, severity: string): string[] {
   const actions: Record<string, string[]> = {
     rain: [
       'Ensure proper drainage in fields',
@@ -170,5 +170,4 @@ function getDefaultActions(type: string, severity: string): string[] {
 
   return actions[type] || ['Monitor crops closely', 'Take preventive measures'];
 }
-
 

@@ -5,7 +5,7 @@ import Diagnosis from '@/models/Diagnosis';
 import { analyzeSoilHealth } from '@/lib/soilHealth';
 
 // POST - Add soil test result
-export async function POST(request: NextRequest) {
+export async function POST (request: NextRequest) {
   try {
     await connectDB();
     const body = await request.json();
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 }
 
 // GET - Get soil test history
-export async function GET(request: NextRequest) {
+export async function GET (request: NextRequest) {
   try {
     await connectDB();
     const { searchParams } = new URL(request.url);
@@ -131,5 +131,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 

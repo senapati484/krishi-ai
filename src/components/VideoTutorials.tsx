@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
-import { Play, ThumbsUp, Eye, QrCode as QrCodeIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Play, ThumbsUp, Eye, Download, QrCode as QrCodeIcon } from "lucide-react";
 import { t } from "@/lib/i18n";
 import type { Language } from "@/lib/i18n";
 import { QRCodeSVG } from "qrcode.react";
@@ -41,11 +40,22 @@ export default function VideoTutorials({
   diagnosisId,
 }: VideoTutorialsProps) {
   const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [showQRCode, setShowQRCode] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const fetchVideos = useCallback(async () => {
+  // Helper function to check if URL is YouTube
+  const isYouTubeUrl = (url: string): boolean => {
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    fetchVideos();
+  }, [crop, disease, treatmentType, language]);
+
+  const fetchVideos = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -66,18 +76,16 @@ export default function VideoTutorials({
     } finally {
       setLoading(false);
     }
-  }, [crop, disease, treatmentType, language]);
-
-  useEffect(() => {
-    fetchVideos();
-  }, [fetchVideos]);
+  };
 
   const generateVideoURL = (videoId: string) => {
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    return `${baseUrl}/videos/${videoId}${
-      diagnosisId ? `?diagnosis=${diagnosisId}` : ""
-    }`;
+    return `${baseUrl}/videos/${videoId}${diagnosisId ? `?diagnosis=${diagnosisId}` : ""}`;
   };
+
+  if (!mounted) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -140,26 +148,20 @@ export default function VideoTutorials({
           >
             <div className="flex gap-4 p-4">
               {video.thumbnailUrl ? (
-                <Image
+                <img
                   src={video.thumbnailUrl}
                   alt={video.title}
-                  width={128}
-                  height={96}
-                  className="w-32 h-24 object-cover rounded-lg shrink-0"
+                  className="w-32 h-24 object-cover rounded-lg flex-shrink-0"
                 />
               ) : (
-                <div className="w-32 h-24 bg-gray-200 rounded-lg flex items-center justify-center shrink-0">
+                <div className="w-32 h-24 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Play className="w-8 h-8 text-gray-400" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-gray-900 mb-1 line-clamp-2">
-                  {video.title}
-                </h4>
+                <h4 className="font-bold text-gray-900 mb-1 line-clamp-2">{video.title}</h4>
                 {video.description && (
-                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                    {video.description}
-                  </p>
+                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">{video.description}</p>
                 )}
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
@@ -171,10 +173,7 @@ export default function VideoTutorials({
                     {video.likes}
                   </span>
                   {video.duration && (
-                    <span>
-                      {Math.floor(video.duration / 60)}:
-                      {(video.duration % 60).toString().padStart(2, "0")}
-                    </span>
+                    <span>{Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, "0")}</span>
                   )}
                   {video.isCommunityUpload && (
                     <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
@@ -187,12 +186,25 @@ export default function VideoTutorials({
             {selectedVideo?.id === video.id && (
               <div className="px-4 pb-4">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <video
-                    src={video.videoUrl}
-                    controls
-                    className="w-full rounded-lg"
-                    poster={video.thumbnailUrl}
-                  />
+                  {isYouTubeUrl(video.videoUrl) ? (
+                    <iframe
+                      width="100%"
+                      height="400"
+                      src={video.videoUrl}
+                      title={video.title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      className="rounded-lg"
+                    />
+                  ) : (
+                    <video
+                      src={video.videoUrl}
+                      controls
+                      className="w-full rounded-lg"
+                      poster={video.thumbnailUrl}
+                    />
+                  )}
                 </div>
                 {showQR && (
                   <button
@@ -214,3 +226,4 @@ export default function VideoTutorials({
     </div>
   );
 }
+

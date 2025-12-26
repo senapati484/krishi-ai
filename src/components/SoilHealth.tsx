@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Droplets,
   Leaf,
@@ -8,7 +8,6 @@ import {
   AlertCircle,
   CheckCircle,
   Volume2,
-  VolumeX,
   Globe,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
@@ -51,7 +50,7 @@ interface SoilHealthProps {
   farmId?: string;
 }
 
-export default function SoilHealth({ language, farmId }: SoilHealthProps) {
+export default function SoilHealth ({ language, farmId }: SoilHealthProps) {
   const { user } = useStore();
   const [soilTests, setSoilTests] = useState<SoilTestResult[]>([]);
   const [recommendations, setRecommendations] = useState<CropRecommendation[]>(
@@ -67,8 +66,6 @@ export default function SoilHealth({ language, farmId }: SoilHealthProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState<SoilTestResult | null>(null);
   const [displayLanguage, setDisplayLanguage] = useState<Language>(language);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [formData, setFormData] = useState({
     pH: "",
     nitrogen: "",
@@ -100,8 +97,7 @@ export default function SoilHealth({ language, farmId }: SoilHealthProps) {
       setLoading(true);
       try {
         const response = await fetch(
-          `/api/soil/recommendations?userId=${user.id}${
-            farmId ? `&farmId=${farmId}` : ""
+          `/api/soil/recommendations?userId=${user.id}${farmId ? `&farmId=${farmId}` : ""
           }&language=${lang}`
         );
         const data = await response.json();
@@ -230,29 +226,16 @@ export default function SoilHealth({ language, farmId }: SoilHealthProps) {
       en: "en-US",
     };
     utter.lang = langMap[displayLanguage] || "en-US";
-    utter.onend = () => setIsSpeaking(false);
-    utter.onerror = () => setIsSpeaking(false);
-    utterRef.current = utter;
-    setIsSpeaking(true);
     synth.speak(utter);
-  };
-
-  const stopSpeaking = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
   };
 
   const testSummaryText = (test: SoilTestResult | null) => {
     if (!test) return "";
     const recs = (test.recommendations || []).slice(0, 3).join("; ");
-    return `Soil test on ${new Date(test.testDate).toLocaleDateString()}. pH ${
-      test.pH
-    }. Nitrogen ${test.nitrogen || "NA"}, Phosphorus ${
-      test.phosphorus || "NA"
-    }, Potassium ${test.potassium || "NA"}. Recommendations: ${
-      recs || "none"
-    }.`;
+    return `Soil test on ${new Date(test.testDate).toLocaleDateString()}. pH ${test.pH
+      }. Nitrogen ${test.nitrogen || "NA"}, Phosphorus ${test.phosphorus || "NA"
+      }, Potassium ${test.potassium || "NA"}. Recommendations: ${recs || "none"
+      }.`;
   };
 
   const handleOpenDetail = (test: SoilTestResult) => {
@@ -292,25 +275,15 @@ export default function SoilHealth({ language, farmId }: SoilHealthProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {!isSpeaking ? (
-            <button
-              onClick={() =>
-                speak(testSummaryText(selectedTest || soilTests[0] || null))
-              }
-              className="p-2 bg-green-50 text-green-700 rounded-full hover:bg-green-100"
-              title="Play summary"
-            >
-              <Volume2 className="w-5 h-5" />
-            </button>
-          ) : (
-            <button
-              onClick={stopSpeaking}
-              className="p-2 bg-red-50 text-red-700 rounded-full hover:bg-red-100"
-              title="Stop"
-            >
-              <VolumeX className="w-5 h-5" />
-            </button>
-          )}
+          <button
+            onClick={() =>
+              speak(testSummaryText(selectedTest || soilTests[0] || null))
+            }
+            className="p-2 bg-green-50 text-green-700 rounded-full hover:bg-green-100"
+            title="Play summary"
+          >
+            <Volume2 className="w-5 h-5" />
+          </button>
           <button
             onClick={() => setShowForm(!showForm)}
             className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors text-sm"
@@ -501,13 +474,12 @@ export default function SoilHealth({ language, farmId }: SoilHealthProps) {
             {improvements.map((improvement, i) => (
               <div
                 key={i}
-                className={`p-4 rounded-xl border-2 ${
-                  improvement.priority === "high"
+                className={`p-4 rounded-xl border-2 ${improvement.priority === "high"
                     ? "bg-red-50 border-red-200"
                     : improvement.priority === "medium"
-                    ? "bg-yellow-50 border-yellow-200"
-                    : "bg-blue-50 border-blue-200"
-                }`}
+                      ? "bg-yellow-50 border-yellow-200"
+                      : "bg-blue-50 border-blue-200"
+                  }`}
               >
                 <div className="flex items-start gap-2 mb-2">
                   <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
@@ -558,7 +530,9 @@ export default function SoilHealth({ language, farmId }: SoilHealthProps) {
               <Globe className="w-4 h-4 text-gray-600" />
               <select
                 value={displayLanguage}
-                onChange={(e) => setDisplayLanguage(e.target.value as Language)}
+                onChange={(e) =>
+                  setDisplayLanguage(e.target.value as Language)
+                }
                 className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-green-500"
               >
                 <option value="en">English</option>
@@ -602,4 +576,3 @@ export default function SoilHealth({ language, farmId }: SoilHealthProps) {
     </div>
   );
 }
-

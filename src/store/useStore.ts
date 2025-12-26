@@ -56,7 +56,7 @@ const saved = loadFromStorage();
 export const useStore = create<AppState>((set, get) => ({
     user: saved.user || null,
     token: saved.token || null,
-    language: (saved.language as Language) || 'en',
+    language: (saved.language as Language) || 'hi',
     setUser: (user) => {
         set({ user });
         if (typeof window !== 'undefined') {
