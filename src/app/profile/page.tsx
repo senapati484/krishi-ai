@@ -16,7 +16,7 @@ import { t } from "@/lib/i18n";
 import Link from "next/link";
 
 export default function ProfilePage() {
-  const { user, language, setUser } = useStore();
+  const { user, language, setUser, refreshUser } = useStore();
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -79,7 +79,8 @@ export default function ProfilePage() {
   }, [user]);
 
   const requestLocation = () => {
-    if (navigator.geolocation) {
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      setLocationStatus("Requesting location access...");
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
@@ -94,35 +95,57 @@ export default function ProfilePage() {
               }),
             });
 
-            if (response.ok) {
-              const data = await response.json();
-              if (data.success && user) {
-                setUser({
-                  ...user,
-                  lastLocation: {
-                    lat: latitude,
-                    lon: longitude,
-                    updatedAt: new Date().toISOString(),
-                  },
-                });
+            const data = await response.json();
+            
+            if (data.success && user) {
+              // Update store with new location
+              const updatedUser = {
+                ...user,
+                lastLocation: {
+                  lat: latitude,
+                  lon: longitude,
+                  updatedAt: new Date().toISOString(),
+                },
+              };
+              setUser(updatedUser);
+              
+              setLocationStatus(
+                `Location updated: ${latitude.toFixed(
+                  4
+                )}, ${longitude.toFixed(4)}`
+              );
+              
+              // Show success for a few seconds
+              setTimeout(() => {
                 setLocationStatus(
-                  `Location updated: ${latitude.toFixed(
-                    4
-                  )}, ${longitude.toFixed(4)}`
+                  `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
                 );
-              }
+              }, 3000);
+            } else {
+              const errorMsg = data.error || "Failed to update location";
+              setLocationStatus(`Error: ${errorMsg}`);
+              console.error("Location update error:", data);
             }
           } catch (error) {
             console.error("Error updating location:", error);
-            setLocationStatus("Error updating location");
+            setLocationStatus("Error: Network error updating location");
           }
         },
         (error) => {
-          console.error("Error getting location:", error);
-          setLocationStatus(
-            "Location access denied. Please enable location permissions."
-          );
-        }
+          console.error("Geolocation error:", error);
+          let errorMsg = "Location access denied. Please enable location permissions.";
+          
+          if (error.code === error.PERMISSION_DENIED) {
+            errorMsg = "Location permission denied. Please enable in browser settings.";
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            errorMsg = "Location information unavailable. Check your GPS.";
+          } else if (error.code === error.TIMEOUT) {
+            errorMsg = "Location request timed out. Please try again.";
+          }
+          
+          setLocationStatus(errorMsg);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
       setLocationStatus("Geolocation is not supported by your browser.");
@@ -200,13 +223,10 @@ export default function ProfilePage() {
       if (data.success) {
         setVerificationStatus("verified");
         setVerificationCode("");
-        if (user) {
-          setUser({
-            ...user,
-            email: data.user.email,
-            emailVerified: true,
-          });
-        }
+        
+        // Refresh user data from server to persist emailVerified status
+        await refreshUser();
+        
         alert("✅ Email verified successfully!");
       } else {
         const errorMsg = data.error || "Invalid verification code";
@@ -273,14 +293,14 @@ export default function ProfilePage() {
   // Prevent hydration error by not rendering until mounted
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-b from-green-50 to-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <Link
           href="/"

@@ -34,6 +34,7 @@ interface AppState {
     setLanguage: (lang: Language) => void;
     login: (user: User, token: string) => void;
     logout: () => void;
+    refreshUser: () => Promise<void>;
 }
 
 // Load from localStorage on init
@@ -52,14 +53,14 @@ const loadFromStorage = (): Partial<AppState> => {
 
 const saved = loadFromStorage();
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
     user: saved.user || null,
     token: saved.token || null,
-    language: (saved.language as Language) || 'hi',
+    language: (saved.language as Language) || 'en',
     setUser: (user) => {
         set({ user });
         if (typeof window !== 'undefined') {
-            const state = useStore.getState();
+            const state = get();
             localStorage.setItem('krishi-ai-storage', JSON.stringify({
                 user,
                 token: state.token,
@@ -70,7 +71,7 @@ export const useStore = create<AppState>((set) => ({
     setToken: (token) => {
         set({ token });
         if (typeof window !== 'undefined') {
-            const state = useStore.getState();
+            const state = get();
             localStorage.setItem('krishi-ai-storage', JSON.stringify({
                 user: state.user,
                 token,
@@ -81,7 +82,7 @@ export const useStore = create<AppState>((set) => ({
     setLanguage: (lang) => {
         set({ language: lang });
         if (typeof window !== 'undefined') {
-            const state = useStore.getState();
+            const state = get();
             localStorage.setItem('krishi-ai-storage', JSON.stringify({
                 user: state.user,
                 token: state.token,
@@ -92,7 +93,7 @@ export const useStore = create<AppState>((set) => ({
     login: (user, token) => {
         set({ user, token });
         if (typeof window !== 'undefined') {
-            const state = useStore.getState();
+            const state = get();
             localStorage.setItem('krishi-ai-storage', JSON.stringify({
                 user,
                 token,
@@ -106,5 +107,33 @@ export const useStore = create<AppState>((set) => ({
             localStorage.removeItem('krishi-ai-storage');
         }
     },
+    refreshUser: async () => {
+        const state = get();
+        if (state.user?.id) {
+            try {
+                const response = await fetch(`/api/user?id=${state.user.id}`);
+                const data = await response.json();
+                if (data.success) {
+                    // Merge current user with refreshed data to preserve all fields
+                    const updatedUser: User = {
+                        ...state.user,
+                        ...data.user,
+                        emailVerified: data.user.emailVerified ?? state.user.emailVerified ?? false,
+                    };
+                    set({ user: updatedUser });
+                    if (typeof window !== 'undefined') {
+                        const currentState = get();
+                        localStorage.setItem('krishi-ai-storage', JSON.stringify({
+                            user: updatedUser,
+                            token: currentState.token,
+                            language: currentState.language
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.error('Error refreshing user data:', error);
+            }
+        }
+    }
 }));
 

@@ -17,8 +17,8 @@ export default function LocationTracker() {
       return;
     }
 
-    // Request location
-    if (navigator.geolocation) {
+    // Request location - only in browser
+    if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
@@ -54,7 +54,16 @@ export default function LocationTracker() {
           }
         },
         (error) => {
-          console.error("Error getting location:", error);
+          // Handle geolocation error codes properly
+          const errorMessages: { [key: number]: string } = {
+            1: "Permission denied - please enable location access in browser settings",
+            2: "Position unavailable - your device cannot determine location",
+            3: "Timeout - location request took too long, please try again",
+          };
+          const message =
+            errorMessages[error.code] ||
+            `Geolocation error code: ${error.code}`;
+          console.error("Error getting location:", message);
         },
         {
           enableHighAccuracy: true,

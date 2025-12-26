@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Cloud,
   CloudRain,
@@ -39,10 +39,11 @@ export default function WeatherReport({ language }: WeatherReportProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  const fetchWeather = async () => {
+  const fetchWeather = useCallback(async () => {
     if (!user?.lastLocation?.lat || !user?.lastLocation?.lon) {
-      setError("Location not set. Please update your location in profile.");
+      // Keep demo visible without blocking render
       return;
     }
 
@@ -50,27 +51,34 @@ export default function WeatherReport({ language }: WeatherReportProps) {
     setError(null);
     try {
       const response = await fetch(
-        `/api/weather/current?lat=${user.lastLocation.lat}&lon=${user.lastLocation.lon}`
+        `/api/weather/current?lat=${user.lastLocation.lat}&lon=${user.lastLocation.lon}&language=${language}`
       );
       const data = await response.json();
       if (data.success && data.weather) {
         setWeather(data.weather);
+        setError(null);
       } else {
         setError(data.error || "Failed to fetch weather data");
+        setWeather(null);
       }
     } catch (err) {
       console.error("Error fetching weather:", err);
-      setError("Failed to fetch weather data");
+      setError("Failed to fetch weather data. Check your internet connection.");
+      setWeather(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [language, user?.lastLocation?.lat, user?.lastLocation?.lon]);
 
   useEffect(() => {
-    if (user?.lastLocation?.lat && user?.lastLocation?.lon) {
-      fetchWeather();
-    }
-  }, [user?.lastLocation?.lat, user?.lastLocation?.lon]);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    // Always fetch when location becomes available; no hard reload needed
+    fetchWeather();
+  }, [mounted, user?.lastLocation?.lat, user?.lastLocation?.lon, fetchWeather]);
 
   const getWeatherIcon = (main: string) => {
     switch (main.toLowerCase()) {
@@ -87,15 +95,67 @@ export default function WeatherReport({ language }: WeatherReportProps) {
   };
 
   if (!user?.lastLocation) {
+    // Show demo weather data when location is not available
+    const demoWeather: WeatherData = {
+      temp: 28,
+      humidity: 65,
+      rainfall: 2.5,
+      windSpeed: 12,
+      description: "Partly cloudy",
+      main: "Clouds",
+    };
+
     return (
-      <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 text-center">
-        <MapPin className="w-12 h-12 text-blue-600 mx-auto mb-3" />
-        <p className="text-blue-800 font-semibold mb-2">
-          {t("locationNotSet", language) || "Location not set"}
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-green-600" />
+            {t("weatherReport", language) || "Weather Report"} (Demo)
+          </h3>
+        </div>
+        <p className="text-sm text-gray-600 mb-4 bg-blue-50 p-2 rounded border border-blue-200">
+          Enable location in your profile to see real-time weather data
         </p>
-        <p className="text-sm text-blue-700">
-          Please update your location in profile to see weather reports.
-        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center gap-3">
+            {getWeatherIcon(demoWeather.main)}
+            <div>
+              <p className="text-sm text-gray-600">
+                {t("condition", language) || "Condition"}
+              </p>
+              <p className="text-lg font-semibold">{demoWeather.description}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Thermometer className="w-8 h-8 text-red-500" />
+            <div>
+              <p className="text-sm text-gray-600">
+                {t("temperature", language) || "Temperature"}
+              </p>
+              <p className="text-lg font-semibold">{demoWeather.temp}°C</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Droplets className="w-8 h-8 text-blue-500" />
+            <div>
+              <p className="text-sm text-gray-600">
+                {t("humidity", language) || "Humidity"}
+              </p>
+              <p className="text-lg font-semibold">{demoWeather.humidity}%</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Wind className="w-8 h-8 text-gray-500" />
+            <div>
+              <p className="text-sm text-gray-600">
+                {t("windSpeed", language) || "Wind"}
+              </p>
+              <p className="text-lg font-semibold">
+                {demoWeather.windSpeed} m/s
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -169,7 +229,9 @@ export default function WeatherReport({ language }: WeatherReportProps) {
           <Wind className="w-5 h-5 text-gray-600" />
           <div>
             <p className="text-xs text-gray-600">Wind</p>
-            <p className="text-lg font-bold">{weather.windSpeed.toFixed(1)} m/s</p>
+            <p className="text-lg font-bold">
+              {weather.windSpeed.toFixed(1)} m/s
+            </p>
           </div>
         </div>
       </div>
@@ -180,9 +242,7 @@ export default function WeatherReport({ language }: WeatherReportProps) {
           <p className="font-semibold text-gray-900 capitalize">
             {weather.description}
           </p>
-          <p className="text-sm text-gray-600">
-            {weather.main}
-          </p>
+          <p className="text-sm text-gray-600">{weather.main}</p>
         </div>
       </div>
 
@@ -211,4 +271,3 @@ export default function WeatherReport({ language }: WeatherReportProps) {
     </div>
   );
 }
-

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     let progressionObjectId;
     try {
       progressionObjectId = new mongoose.Types.ObjectId(progressionId);
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: 'Invalid progression ID' },
         { status: 400 }
@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
       .sort({ timestamp: 1 })
       .lean();
 
-    const entries = diagnoses.map((d) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const entries = diagnoses.map((d: any) => ({
       id: d._id.toString(),
       date: d.timestamp,
       imageUrl: d.imageUrl,

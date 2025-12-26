@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight, AlertCircle, WifiOff } from "lucide-react";
 import { t } from "@/lib/i18n";
 import type { Language } from "@/lib/i18n";
-import Link from "next/link";
+import {
+  initDB,
+  saveDiseaseCards,
+  getDiseaseCards,
+  type OfflineDiseaseCard,
+} from "@/lib/offlineStorage";
 
 interface DiseaseCard {
   name: string;
@@ -20,7 +25,11 @@ const commonDiseases: Record<string, DiseaseCard[]> = {
     {
       name: "Early Blight",
       commonName: "Early Blight",
-      symptoms: ["Brown spots with rings", "Yellow leaves", "Lower leaves affected first"],
+      symptoms: [
+        "Brown spots with rings",
+        "Yellow leaves",
+        "Lower leaves affected first",
+      ],
       quickFix: "Remove affected leaves, apply copper-based fungicide",
       severity: "moderate",
     },
@@ -43,7 +52,11 @@ const commonDiseases: Record<string, DiseaseCard[]> = {
     {
       name: "Blast",
       commonName: "Rice Blast",
-      symptoms: ["Diamond-shaped lesions", "White to gray centers", "Leaf death"],
+      symptoms: [
+        "Diamond-shaped lesions",
+        "White to gray centers",
+        "Leaf death",
+      ],
       quickFix: "Apply tricyclazole fungicide, use resistant varieties",
       severity: "high",
     },
@@ -82,8 +95,71 @@ export default function QuickDiagnosisCards({
   language,
   cropType = "tomato",
 }: QuickDiagnosisCardsProps) {
-  const diseases = commonDiseases[cropType.toLowerCase()] || commonDiseases.tomato;
+  const [diseases, setDiseases] = useState(
+    commonDiseases[cropType.toLowerCase()] || commonDiseases.tomato
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isOnline, setIsOnline] = useState(typeof window !== "undefined" ? navigator.onLine : true);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+
+  const loadOfflineCards = useCallback(async () => {
+    try {
+      await initDB();
+      const offlineCards = await getDiseaseCards(cropType.toLowerCase());
+      if (offlineCards.length > 0) {
+        setDiseases(
+          offlineCards.map((card) => ({
+            name: card.name,
+            commonName: card.commonName,
+            symptoms: card.symptoms,
+            quickFix: card.quickFix,
+            severity: card.severity,
+          }))
+        );
+        setIsOfflineMode(true);
+      } else {
+        // Save default cards for offline use
+        const defaultDiseases =
+          commonDiseases[cropType.toLowerCase()] || commonDiseases.tomato;
+        const cardsToSave: OfflineDiseaseCard[] = defaultDiseases.map(
+          (disease, index) => ({
+            id: `${cropType}-${index}`,
+            crop: cropType.toLowerCase(),
+            name: disease.name,
+            commonName: disease.commonName,
+            symptoms: disease.symptoms,
+            quickFix: disease.quickFix,
+            severity: disease.severity,
+            lastUpdated: Date.now(),
+          })
+        );
+        await saveDiseaseCards(cardsToSave);
+      }
+    } catch (error) {
+      console.error("Error loading offline cards:", error);
+    }
+  }, [cropType]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Load offline cards when crop type changes - use setTimeout to avoid synchronous setState
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadOfflineCards();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [cropType, loadOfflineCards]);
 
   const nextCard = () => {
     setCurrentIndex((prev) => (prev + 1) % diseases.length);
@@ -104,9 +180,23 @@ export default function QuickDiagnosisCards({
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-gray-900">
-          {t("quickDiagnosis", language) || "Quick Diagnosis"}
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-900">
+            {t("quickDiagnosis", language) || "Quick Diagnosis"}
+          </h3>
+          {isOfflineMode && (
+            <span className="flex items-center gap-1 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+              <WifiOff className="w-3 h-3" />
+              {t("offline", language) || "Offline"}
+            </span>
+          )}
+          {!isOnline && (
+            <span className="flex items-center gap-1 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+              <WifiOff className="w-3 h-3" />
+              {t("noConnection", language) || "No Connection"}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={prevCard}
@@ -162,7 +252,7 @@ export default function QuickDiagnosisCards({
         <button
           onClick={() => {
             // Scroll to top and trigger scan (this will be handled by parent)
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           className="w-full text-center bg-green-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-700 transition-colors"
         >
@@ -172,4 +262,3 @@ export default function QuickDiagnosisCards({
     </div>
   );
 }
-

@@ -121,17 +121,18 @@ export async function POST(request: NextRequest) {
             await diagnosis.save();
         }
 
+        const diagnosisData = diagnosis as any;
         return NextResponse.json({
             success: true,
             diagnosis: {
-                id: diagnosis._id.toString(),
+                id: (diagnosisData?._id as any)?.toString() || diagnosisData?._id,
                 crop: analysisResult.crop,
                 disease: analysisResult.disease,
                 advice: adviceResult,
                 symptoms: analysisResult.symptoms,
                 affectedArea: analysisResult.affectedArea,
                 timestamp: diagnosis.timestamp,
-                progressionId: diagnosis.progressionId?.toString() || diagnosis._id.toString(),
+                progressionId: diagnosisData.progressionId?.toString() || (diagnosisData?._id as any)?.toString() || diagnosisData?._id,
             },
         });
     } catch (error: unknown) {

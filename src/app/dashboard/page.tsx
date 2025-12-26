@@ -5,6 +5,7 @@ import { ArrowLeft, Plus, Calendar, AlertCircle, CheckCircle } from "lucide-reac
 import { useStore } from "@/store/useStore";
 import { t } from "@/lib/i18n";
 import Link from "next/link";
+import SoilHealth from "@/components/SoilHealth";
 
 interface Crop {
   name: string;
@@ -255,6 +256,11 @@ export default function DashboardPage() {
             })}
           </div>
         )}
+
+        {/* Soil Health Section */}
+        <div className="mt-8">
+          <SoilHealth language={language} />
+        </div>
       </div>
     </div>
   );

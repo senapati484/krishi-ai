@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Diagnosis ID is required' }, { status: 400 });
     }
 
-    const diagnosis = await Diagnosis.findById(diagnosisId).lean();
+    const diagnosis = await Diagnosis.findById(diagnosisId).lean() as any;
 
     if (!diagnosis) {
       return NextResponse.json({ error: 'Diagnosis not found' }, { status: 404 });
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       diagnosis: {
-        id: diagnosis._id,
+        id: diagnosis?._id?.toString() || diagnosis?._id,
         crop: diagnosis.crop,
         disease: diagnosis.disease,
         advice: diagnosis.advice,

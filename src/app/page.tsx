@@ -18,6 +18,7 @@ import DiagnosisResult from "@/components/DiagnosisResult";
 import QuickDiagnosisCards from "@/components/QuickDiagnosisCards";
 import WeatherAlert from "@/components/WeatherAlert";
 import WeatherReport from "@/components/WeatherReport";
+import VideoTutorials from "@/components/VideoTutorials";
 import PWAInstall from "@/components/PWAInstall";
 import LocationTracker from "@/components/LocationTracker";
 import Link from "next/link";
@@ -28,12 +29,6 @@ export default function Home() {
   const [showCamera, setShowCamera] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  // Fix hydration error by only rendering after mount
-  useEffect(() => {
-    setMounted(true);
-  }, []);
   interface DiagnosisData {
     crop: string;
     disease: {
@@ -191,7 +186,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+    <div className="min-h-screen bg-linear-to-b from-green-50 to-white">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -200,11 +195,11 @@ export default function Home() {
               🌾 {t("appName", language)}
             </h1>
             <p className="text-sm text-gray-600">
-              {mounted ? t("tagline", language) : "Your Crop Doctor"}
+              {t("tagline", language) || "Your Crop Doctor"}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {user && mounted && (
+            {user && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <User className="w-4 h-4" />
                 <span>{user.name}</span>
@@ -264,7 +259,7 @@ export default function Home() {
               <button
                 onClick={() => setShowCamera(true)}
                 disabled={loading}
-                className="bg-green-600 text-white p-8 rounded-2xl shadow-lg hover:bg-green-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-4 min-h-[200px]"
+                className="bg-green-600 text-white p-8 rounded-2xl shadow-lg hover:bg-green-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-4 h-48"
               >
                 <Camera className="w-16 h-16" />
                 <span className="text-xl font-bold">
@@ -275,7 +270,7 @@ export default function Home() {
               <button
                 onClick={() => setShowVoice(true)}
                 disabled={loading}
-                className="bg-blue-600 text-white p-8 rounded-2xl shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-4 min-h-[200px]"
+                className="bg-blue-600 text-white p-8 rounded-2xl shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-4 h-48"
               >
                 <Mic className="w-16 h-16" />
                 <span className="text-xl font-bold">
@@ -284,16 +279,22 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Weather Report Section */}
-            {user?.lastLocation && (
-              <div className="space-y-4">
-                <WeatherReport language={language} />
-                <WeatherAlert language={language} />
-              </div>
-            )}
+            {/* Weather Report Section - Always Show */}
+            <div className="space-y-4">
+              <WeatherReport language={language} />
+              <WeatherAlert language={language} />
+            </div>
 
             {/* Quick Diagnosis Cards */}
             <QuickDiagnosisCards language={language} cropType="tomato" />
+
+            {/* Video Tutorials Section */}
+            <VideoTutorials
+              language={language}
+              crop="tomato"
+              disease=""
+              showQR={true}
+            />
 
             {/* Secondary Actions */}
             <div className="grid gap-4 md:grid-cols-3">

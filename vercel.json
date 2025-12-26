@@ -1,9 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/weather/check",
-      "schedule": "*/5 * * * *"
-    }
-  ]
-}
-

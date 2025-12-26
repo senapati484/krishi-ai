@@ -50,8 +50,9 @@ export async function POST(request: NextRequest) {
     await user.save();
 
     // Return user without password
+    const userData = user as any;
     const userResponse = {
-      id: user._id.toString(),
+      id: (userData?._id as any)?.toString() || userData?._id,
       name: user.name,
       email: user.email,
       phone: user.phone,

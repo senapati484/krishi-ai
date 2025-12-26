@@ -7,6 +7,7 @@ export interface WeatherData {
   condition: string;
   description: string;
   windSpeed: number;
+  main?: string;
   alerts?: WeatherAlert[];
 }
 
@@ -17,7 +18,16 @@ export interface WeatherAlert {
   cropImpact: string;
 }
 
-export async function getWeatherData(lat: number, lon: number): Promise<WeatherData> {
+type ForecastItem = {
+  rain?: {
+    ["3h"]?: number;
+  };
+};
+
+export async function getWeatherData(
+  lat: number,
+  lon: number
+): Promise<WeatherData> {
   if (!OPEN_WEATHER_API_KEY) {
     throw new Error('OPEN_WEATHER_API_KEY not configured');
   }
@@ -36,14 +46,14 @@ export async function getWeatherData(lat: number, lon: number): Promise<WeatherD
     // Calculate rainfall from forecast
     let rainfall = 0;
     if (forecastData.list) {
-      forecastData.list.forEach((item: any) => {
-        if (item.rain && item.rain['3h']) {
-          rainfall += item.rain['3h'];
+      (forecastData.list as ForecastItem[]).forEach((item) => {
+        if (item.rain && item.rain["3h"]) {
+          rainfall += item.rain["3h"];
         }
       });
     }
 
-    const weather: WeatherData = {
+    const weatherBase: WeatherData = {
       temp: currentData.main.temp,
       humidity: currentData.main.humidity,
       rainfall,
@@ -53,9 +63,12 @@ export async function getWeatherData(lat: number, lon: number): Promise<WeatherD
       main: currentData.weather[0].main, // Add main for compatibility
     };
 
-    // Alerts will be generated in the API route
+    const alerts = generateWeatherAlerts(weatherBase);
 
-    return weather;
+    return {
+      ...weatherBase,
+      alerts,
+    };
   } catch (error) {
     console.error('Error fetching weather data:', error);
     throw error;
@@ -135,9 +148,9 @@ export function generateWeatherAlerts(weather: WeatherData, language: string = '
 
 export function shouldSendAlert(alerts: WeatherAlert[]): boolean {
   // Only send alerts for moderate, high, or critical severity
-  return alerts.some(alert => 
-    alert.severity === 'moderate' || 
-    alert.severity === 'high' || 
+  return alerts.some(alert =>
+    alert.severity === 'moderate' ||
+    alert.severity === 'high' ||
     alert.severity === 'critical'
   );
 }

@@ -36,11 +36,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate token
-    const token = generateToken(user._id.toString());
+    const userData = user as any;
+    const token = generateToken((userData?._id as any)?.toString() || userData?._id);
 
     // Return user and token
     const userResponse = {
-      id: user._id.toString(),
+      id: (userData?._id as any)?.toString() || userData?._id,
       name: user.name,
       email: user.email,
       phone: user.phone,
