@@ -15,7 +15,7 @@ import { useStore } from "@/store/useStore";
 import { t } from "@/lib/i18n";
 import Link from "next/link";
 
-export default function ProfilePage () {
+export default function ProfilePage() {
   const { user, language, setUser, refreshUser } = useStore();
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
@@ -152,44 +152,7 @@ export default function ProfilePage () {
     }
   };
 
-  // Test location for development (India - Howrah, West Bengal)
-  const useTestLocation = async () => {
-    setLocationStatus("Setting test location...");
-    try {
-      const response = await fetch("/api/user/location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user?.id,
-          lat: 22.5958,
-          lon: 88.2636,
-        }),
-      });
 
-      const data = await response.json();
-
-      if (data.success && user) {
-        const updatedUser = {
-          ...user,
-          lastLocation: {
-            lat: 22.5958,
-            lon: 88.2636,
-            updatedAt: new Date().toISOString(),
-          },
-        };
-        setUser(updatedUser);
-        setLocationStatus("✓ Test location set: Howrah, West Bengal (22.5958°N, 88.2636°E)");
-
-        setTimeout(() => {
-          setLocationStatus("Location: 22.5958, 88.2636 (Test)");
-        }, 3000);
-      } else {
-        setLocationStatus("Error: Failed to set test location");
-      }
-    } catch (error) {
-      setLocationStatus("Error: Network error setting location");
-    }
-  };
 
   const handleSendVerificationCode = async () => {
     if (!user?.id || !formData.email) return;
@@ -442,24 +405,31 @@ export default function ProfilePage () {
               <MapPin className="inline w-4 h-4 mr-2" />
               Current Location
             </label>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600 mb-2">{locationStatus}</p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={requestLocation}
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <MapPin className="w-4 h-4" />
-                  Update Location
-                </button>
-                <button
-                  type="button"
-                  onClick={useTestLocation}
-                  className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-xl font-semibold hover:bg-gray-600 transition-colors text-sm"
-                >
-                  Use Test Location
-                </button>
+            <div className="space-y-3">
+              <div className={`p-3 rounded-xl text-sm ${locationStatus.includes("Location:") || locationStatus.includes("updated")
+                  ? "bg-green-50 text-green-800 border border-green-200"
+                  : locationStatus.includes("Error") || locationStatus.includes("denied") || locationStatus.includes("Unable")
+                    ? "bg-red-50 text-red-800 border border-red-200"
+                    : "bg-blue-50 text-blue-800 border border-blue-200"
+                }`}>
+                {locationStatus}
+              </div>
+              <button
+                type="button"
+                onClick={requestLocation}
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <MapPin className="w-5 h-5" />
+                Update Location
+              </button>
+              <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600">
+                <p className="font-semibold mb-1">Having trouble with location?</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Make sure location services are enabled in your device settings</li>
+                  <li>Allow location access when prompted by the browser</li>
+                  <li>Try refreshing the page if location doesn&apos;t update</li>
+                  <li>On iOS, go to Settings → Safari → Location → Allow</li>
+                </ul>
               </div>
             </div>
           </div>

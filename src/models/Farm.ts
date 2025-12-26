@@ -26,6 +26,12 @@ const FarmSchema = new Schema<IFarm>({
     name: String,
     plantedDate: Date,
     variety: String,
+    status: {
+      type: String,
+      enum: ['healthy', 'monitoring', 'diseased'],
+      default: 'healthy',
+    },
+    lastCheck: Date,
   }],
   soilType: String,
   irrigationType: String,

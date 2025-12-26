@@ -50,7 +50,7 @@ interface SoilHealthProps {
   farmId?: string;
 }
 
-export default function SoilHealth ({ language, farmId }: SoilHealthProps) {
+export default function SoilHealth({ language, farmId }: SoilHealthProps) {
   const { user } = useStore();
   const [soilTests, setSoilTests] = useState<SoilTestResult[]>([]);
   const [recommendations, setRecommendations] = useState<CropRecommendation[]>(
@@ -75,6 +75,7 @@ export default function SoilHealth ({ language, farmId }: SoilHealthProps) {
     moisture: "",
     texture: "loamy",
   });
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const fetchSoilTests = useCallback(async () => {
     if (!user?.id) return;
@@ -128,6 +129,8 @@ export default function SoilHealth ({ language, farmId }: SoilHealthProps) {
     if (!user?.id) return;
 
     setLoading(true);
+    setSubmitError(null);
+
     try {
       const response = await fetch("/api/soil/test", {
         method: "POST",
@@ -159,11 +162,12 @@ export default function SoilHealth ({ language, farmId }: SoilHealthProps) {
       const data = await response.json();
       if (data.success) {
         setSoilTests([data.soilTest, ...soilTests]);
-        setRecommendations(data.analysis.recommendations || []);
-        setImprovements(data.analysis.improvements || []);
-        setOverallHealth(data.analysis.overallHealth || "");
-        setSummary(data.analysis.summary || "");
+        setRecommendations(data.analysis?.recommendations || []);
+        setImprovements(data.analysis?.improvements || []);
+        setOverallHealth(data.analysis?.overallHealth || "");
+        setSummary(data.analysis?.summary || "");
         setShowForm(false);
+        setSubmitError(null);
         setFormData({
           pH: "",
           nitrogen: "",
@@ -173,9 +177,12 @@ export default function SoilHealth ({ language, farmId }: SoilHealthProps) {
           moisture: "",
           texture: "loamy",
         });
+      } else {
+        setSubmitError(data.error || "Failed to analyze soil. Please try again.");
       }
     } catch (error) {
       console.error("Error submitting soil test:", error);
+      setSubmitError("Failed to connect. Please check your internet connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -394,6 +401,11 @@ export default function SoilHealth ({ language, farmId }: SoilHealthProps) {
               />
             </div>
           </div>
+          {submitError && (
+            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-red-800 text-sm">
+              {submitError}
+            </div>
+          )}
           <button
             type="submit"
             disabled={loading}
@@ -475,10 +487,10 @@ export default function SoilHealth ({ language, farmId }: SoilHealthProps) {
               <div
                 key={i}
                 className={`p-4 rounded-xl border-2 ${improvement.priority === "high"
-                    ? "bg-red-50 border-red-200"
-                    : improvement.priority === "medium"
-                      ? "bg-yellow-50 border-yellow-200"
-                      : "bg-blue-50 border-blue-200"
+                  ? "bg-red-50 border-red-200"
+                  : improvement.priority === "medium"
+                    ? "bg-yellow-50 border-yellow-200"
+                    : "bg-blue-50 border-blue-200"
                   }`}
               >
                 <div className="flex items-start gap-2 mb-2">

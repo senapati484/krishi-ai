@@ -7,11 +7,13 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
+  Activity,
 } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import { t } from "@/lib/i18n";
 import Link from "next/link";
 import SoilHealth from "@/components/SoilHealth";
+import CropHealthCheck from "@/components/CropHealthCheck";
 
 interface Crop {
   name: string;
@@ -32,6 +34,8 @@ export default function DashboardPage() {
     variety: "",
   });
   const [mounted, setMounted] = useState(false);
+  const [selectedCrop, setSelectedCrop] = useState<Crop | null>(null);
+  const [showHealthCheck, setShowHealthCheck] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -234,9 +238,8 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
-                        statusColors[crop.status] || statusColors.healthy
-                      }`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${statusColors[crop.status] || statusColors.healthy
+                        }`}
                     >
                       <StatusIcon className="w-4 h-4" />
                       {t(crop.status, language) || crop.status}
@@ -260,12 +263,16 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  <Link
-                    href="/"
-                    className="mt-4 block w-full text-center bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+                  <button
+                    onClick={() => {
+                      setSelectedCrop(crop);
+                      setShowHealthCheck(true);
+                    }}
+                    className="mt-4 w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
                   >
+                    <Activity className="w-4 h-4" />
                     {t("checkHealth", language) || "Check Health"}
-                  </Link>
+                  </button>
                 </div>
               );
             })}
@@ -277,6 +284,22 @@ export default function DashboardPage() {
           <SoilHealth language={language} />
         </div>
       </div>
+
+      {/* Crop Health Check Modal */}
+      {showHealthCheck && selectedCrop && (
+        <CropHealthCheck
+          cropName={selectedCrop.name}
+          plantedDate={selectedCrop.plantedDate}
+          variety={selectedCrop.variety}
+          onClose={() => {
+            setShowHealthCheck(false);
+            setSelectedCrop(null);
+            // Refresh crops to get updated status
+            fetchCrops();
+          }}
+          language={language}
+        />
+      )}
     </div>
   );
 }
