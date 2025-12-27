@@ -1,214 +1,233 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Camera, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Upload, X, RotateCcw } from "lucide-react";
 
-interface CameraCaptureProps {
-  onCapture: (imageData: string) => void;
-  onClose?: () => void;
+interface Props {
+  onCapture: (image: string) => void;
+  onClose: () => void;
   language: "hi" | "bn" | "en";
 }
 
-export default function CameraCapture({
-  onCapture,
-  onClose,
-  language,
-}: CameraCaptureProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const labels = {
+  en: {
+    title: "Capture Image",
+    useCamera: "Use Camera",
+    upload: "Upload from Gallery",
+    capture: "Capture",
+    retake: "Retake",
+    confirm: "Confirm",
+  },
+  hi: {
+    title: "छवि कैप्चर करें",
+    useCamera: "कैमरा उपयोग करें",
+    upload: "गैलरी से चुनें",
+    capture: "कैप्चर करें",
+    retake: "फिर से लें",
+    confirm: "पुष्टि करें",
+  },
+  bn: {
+    title: "ছবি ক্যাপচার করুন",
+    useCamera: "ক্যামেরা ব্যবহার করুন",
+    upload: "গ্যালারি থেকে নির্বাচন করুন",
+    capture: "ক্যাপচার করুন",
+    retake: "আবার নিন",
+    confirm: "নিশ্চিত করুন",
+  },
+};
+
+export default function CameraCapture({ onCapture, onClose, language }: Props) {
+  const t = labels[language];
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [showCamera, setShowCamera] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [facing, setFacing] = useState<"environment" | "user">("environment");
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+      if (stream) return; // 🔑 prevent double start
+
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing },
+        audio: false,
       });
-      setStream(mediaStream);
-      setShowCamera(true);
+
+      setStream(s);
+      setCameraOn(true);
+
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+        videoRef.current.srcObject = s;
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        await videoRef.current.play();
       }
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      alert(
-        "Camera access denied. Please allow camera access to use this feature."
-      );
+    } catch (e) {
+      alert("Camera permission denied");
     }
   };
 
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    setShowCamera(false);
+    stream?.getTracks().forEach((t) => t.stop());
+    setStream(null);
+    setCameraOn(false);
   };
 
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        const imageData = canvas.toDataURL("image/jpeg", 0.8);
-        setPreview(imageData);
-        stopCamera();
-      }
-    }
+  const capture = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const v = videoRef.current;
+    const c = canvasRef.current;
+
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(v, 0, 0);
+
+    setPreview(c.toDataURL("image/jpeg", 0.85));
+    // ❌ DO NOT stop camera here
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setPreview(result);
-      };
-      reader.readAsDataURL(file);
-    }
+  const confirm = () => {
+    if (preview) onCapture(preview);
+    stopCamera();
+    onClose();
   };
 
-  const confirmCapture = () => {
-    if (preview) {
-      onCapture(preview);
-      setPreview(null);
-      if (onClose) onClose();
-    }
-  };
-
-  const cancelPreview = () => {
+  const retake = () => {
     setPreview(null);
   };
 
-  const labels = {
-    hi: {
-      useCamera: "कैमरा उपयोग करें",
-      upload: "गैलरी से चुनें",
-      capture: "कैप्चर करें",
-      confirm: "पुष्टि करें",
-      cancel: "रद्द करें",
-    },
-    bn: {
-      useCamera: "ক্যামেরা ব্যবহার করুন",
-      upload: "গ্যালারি থেকে নির্বাচন করুন",
-      capture: "ক্যাপচার করুন",
-      confirm: "নিশ্চিত করুন",
-      cancel: "বাতিল করুন",
-    },
-    en: {
-      useCamera: "Use Camera",
-      upload: "Choose from Gallery",
-      capture: "Capture",
-      confirm: "Confirm",
-      cancel: "Cancel",
-    },
+  const flipCamera = async () => {
+    stopCamera();
+    setFacing((f) => (f === "user" ? "environment" : "user"));
+    setTimeout(startCamera, 200);
   };
 
-  const t = labels[language];
+  const upload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden">
-        {!showCamera && !preview && (
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold">Capture Image</h3>
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-            <div className="space-y-3">
-              <button
-                onClick={startCamera}
-                className="w-full flex items-center justify-center gap-3 bg-green-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:bg-green-700 transition-colors"
-              >
-                <Camera className="w-6 h-6" />
-                {t.useCamera}
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-3 bg-gray-200 text-gray-800 py-4 px-6 rounded-xl font-semibold text-lg hover:bg-gray-300 transition-colors"
-              >
-                <Upload className="w-6 h-6" />
-                {t.upload}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+      <div className="bg-white w-full max-w-4xl mx-2 rounded-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h3 className="font-semibold">{t.title}</h3>
+          <button
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
+          >
+            <X />
+          </button>
+        </div>
+
+        {/* BODY */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+          {/* CAMERA / PREVIEW */}
+          <div className="relative bg-black h-[70vh] md:h-[80vh]">
+            {!preview && (
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                playsInline
+                muted
               />
-            </div>
-          </div>
-        )}
+            )}
 
-        {showCamera && !preview && (
-          <div className="relative">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full h-[60vh] object-cover"
-            />
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60 to-transparent">
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={stopCamera}
-                  className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold"
-                >
-                  {t.cancel}
-                </button>
-                <button
-                  onClick={capturePhoto}
-                  className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold"
-                >
-                  {t.capture}
-                </button>
-              </div>
-            </div>
-            <canvas ref={canvasRef} className="hidden" />
-          </div>
-        )}
+            {preview && (
+              <img
+                src={preview}
+                className="w-full h-full object-contain bg-black"
+              />
+            )}
 
-        {preview && (
-          <div className="relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-full h-[60vh] object-contain bg-gray-100"
-            />
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60 to-transparent">
-              <div className="flex gap-4 justify-center">
+            {cameraOn && !preview && (
+              <>
                 <button
-                  onClick={cancelPreview}
-                  className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold"
+                  onClick={flipCamera}
+                  className="absolute top-4 left-4 bg-white/80 p-2 rounded-full"
                 >
-                  {t.cancel}
+                  <RotateCcw />
+                </button>
+
+                <button
+                  onClick={capture}
+                  className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white w-20 h-20 rounded-full"
+                >
+                  ●
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* ACTION PANEL */}
+          <div className="p-6 flex flex-col justify-center gap-4">
+            {!cameraOn && !preview && (
+              <>
+                <button
+                  onClick={startCamera}
+                  className="bg-green-600 text-white py-4 rounded-xl text-lg font-semibold flex items-center justify-center gap-2"
+                >
+                  <Camera /> {t.useCamera}
+                </button>
+
+                <div className="text-center text-gray-400 font-semibold">
+                  OR
+                </div>
+
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="bg-gray-100 py-4 rounded-xl text-lg font-semibold flex items-center justify-center gap-2"
+                >
+                  <Upload /> {t.upload}
+                </button>
+
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={upload}
+                  className="hidden"
+                />
+              </>
+            )}
+
+            {preview && (
+              <div className="flex gap-4">
+                <button
+                  onClick={retake}
+                  className="flex-1 bg-gray-200 py-3 rounded-xl font-semibold"
+                >
+                  {t.retake}
                 </button>
                 <button
-                  onClick={confirmCapture}
-                  className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold"
+                  onClick={confirm}
+                  className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold"
                 >
                   {t.confirm}
                 </button>
               </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
+
+        <canvas ref={canvasRef} className="hidden" />
       </div>
     </div>
   );

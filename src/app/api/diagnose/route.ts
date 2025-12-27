@@ -30,6 +30,19 @@ export async function POST(request: NextRequest) {
             const base64Data = image.split(',')[1] || image;
             analysisResult = await analyzeCropImage(base64Data);
 
+            // Guard: if not a crop / unknown image, reject with clear message
+            const cropName = analysisResult?.crop?.toString().trim().toLowerCase();
+            if (!cropName || cropName === 'unknown' || cropName === 'not a crop') {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error:
+                            'Image not recognized as a crop. I am trained only for crop diagnosis. Please upload a clear photo of the affected crop.',
+                    },
+                    { status: 400 }
+                );
+            }
+
             // Generate advice based on analysis
             adviceResult = await generateAdvice(
                 analysisResult,
